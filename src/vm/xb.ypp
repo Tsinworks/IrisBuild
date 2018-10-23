@@ -1,0 +1,300 @@
+%define api.pure full
+%locations
+%lex-param   { yyscan_t scanner }
+%parse-param { yyscan_t scanner }
+%parse-param { iris::parse_node** root }
+%{
+#include "vm/solution.h"
+#include "vm/import.h"
+#include "vm/cproj.h"
+#include "vm/csproj.h"
+#include "vm/node.h"
+#include "vm/function.h"
+#include "os.hpp"
+#ifndef YY_TYPEDEF_YY_SCANNER_T
+#define YY_TYPEDEF_YY_SCANNER_T
+typedef void* yyscan_t;
+#endif
+#include "tokens.h"
+int yylex (YYSTYPE* t, YYLTYPE* loc, yyscan_t scan);
+extern void yyerror(YYLTYPE* loc, yyscan_t scan, iris::parse_node** root, const char* msg);
+%}
+
+%union {
+    char*                       str;
+    int                         number;
+    bool                        boolean;
+
+    iris::parse_node*         _root;
+    iris::solution_node*      _solution;
+    iris::import_node*        _import;
+    iris::impclib_node*       _impclib;
+    iris::config_node*        _config;
+    iris::subproj_node*       _subproj;
+    iris::cproj_node*         _cproj;
+    iris::csproj_node*        _csproj;
+    iris::block_node*         _block;
+    iris::match_node*         _match;
+    iris::list_node*          _list;
+    iris::value_node*         _value;
+    iris::function_call_node* _function_call;
+};
+
+%token TOK_LEFT_PAREN TOK_RIGHT_PAREN
+%token TOK_LEFT_BRACE TOK_RIGHT_BRACE
+%token TOK_LEFT_BRACKET TOK_RIGHT_BRACKET
+
+%token TOK_SOLUTION
+%token TOK_IMPORT
+%token TOK_CONFIG
+%token TOK_IMPCLIB
+%token TOK_CPROJ
+%token TOK_CSPROJ
+%token TOK_RUSTPROJ
+%token TOK_JAVAPROJ
+%token TOK_SUBPROJ
+
+%token TOK_MATCH
+%token TOK_APPEND
+%token TOK_REMOVE
+%token TOK_ASSIGN TOK_LEFT_ANGLE TOK_COMMA TOK_OR
+%token TOK_IF
+%token TOK_ELSE
+%token TOK_ELIF
+
+%token <str> TOK_IDENTIFIER TOK_LITERAL
+%token <number> TOK_NUMBER
+%token <boolean> TOK_TRUE TOK_FALSE
+
+%type <_root>           XB_ROOT
+%type <_solution>       SOLUTION_STAT SOLUTION_STATS
+%type <_import>         IMPORT_STAT
+%type <_impclib>        IMPCLIB_STAT
+%type <_config>         CONFIG_STAT
+%type <_cproj>          CPROJ_STAT
+%type <_csproj>         CSPROJ_STAT
+%type <_subproj>        SUBPROJ_STAT
+%type <_block>          STATMENTS SCOPE_STAT
+%type <_match>          MATCH_STAT MATCH_STATS
+%type <_function_call>  FUNCTION_CALL_STAT
+%type <_list>           LIST LIST_ELEMENTS MATCH_CASE_COMBINE
+%type <_value>          VALUE
+
+%left '+' '-'
+%left '*' '/'
+
+%error-verbose
+%%
+
+XB_ROOT : {
+        if(*root == nullptr) {
+            *root = new iris::block_node(iris::block_node::ret_discard); 
+        }
+    } 
+    | SOLUTION_STAT { static_cast<iris::block_node*>(*root)->add_statement($1); }
+    | CONFIG_STAT { static_cast<iris::block_node*>(*root)->add_statement($1); }
+    | XB_ROOT IMPCLIB_STAT { static_cast<iris::block_node*>(*root)->add_statement($2); }
+    | XB_ROOT CPROJ_STAT { static_cast<iris::block_node*>(*root)->add_statement($2); }
+    ;
+
+SOLUTION_STAT : TOK_SOLUTION TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN TOK_LEFT_BRACE SOLUTION_STATS TOK_RIGHT_BRACE { $$ = $6; $$->set_name($3); }
+
+SOLUTION_STATS : { $$ = new iris::solution_node(); }
+    | SOLUTION_STATS IMPORT_STAT { $$ = $1; $$->add_import($2); }
+    | SOLUTION_STATS CPROJ_STAT { $$ = $1; $$->add_cproj($2); }
+    | SOLUTION_STATS CSPROJ_STAT { $$ = $1; $$->add_csproj($2); }
+    | SOLUTION_STATS JAVAPROJ_STAT { $$ = $1; }
+    | SOLUTION_STATS RUSTPROJ_STAT { $$ = $1; }
+    | SOLUTION_STATS SUBPROJ_STAT { $$ = $1; $$->add_subproj($2); }
+    ;
+
+IMPORT_STAT : TOK_IMPORT TOK_LITERAL { 
+        $$ = new iris::import_node($2); 
+        $$ -> set_file((*root)->get_file()); 
+        $$ -> set_location(@1.first_column, @1.first_line, @2.last_column, @2.last_line);
+        auto cur_path = iris::path::file_dir((*root)->get_file());
+        $$ -> parse(cur_path);
+    }
+    ;
+
+IMPCLIB_STAT : TOK_IMPCLIB TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE { 
+        $$ = new iris::impclib_node($3, $6); 
+        $$ -> set_file((*root)->get_file());
+    }
+    ;
+
+SUBPROJ_STAT : TOK_SUBPROJ TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN { $$ = new iris::subproj_node($3); }
+    ;
+
+CONFIG_STAT : TOK_CONFIG TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN { $$ = new iris::config_node(); }
+    ;
+
+CPROJ_STAT : TOK_CPROJ TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE { 
+        iris::solution_node* sln = static_cast<iris::solution_node*>(*root);
+        $$ = new iris::cproj_node(sln, $3); 
+        $$->set_block($6); 
+        $$->set_file((*root)->get_file()); 
+        $$->set_location(@1.first_column, @1.first_line, @7.last_column, @7.last_line);
+    } 
+    ;
+
+CSPROJ_STAT : TOK_CSPROJ TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE { $$ = new iris::csproj_node($3); $$->set_block($6); } 
+    ;
+    
+JAVAPROJ_STAT : TOK_JAVAPROJ TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE {/*create javaproj*/}
+    ;
+    
+RUSTPROJ_STAT : TOK_RUSTPROJ TOK_LEFT_PAREN TOK_LITERAL TOK_RIGHT_PAREN TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE {/*create rustproj*/}
+    ;
+
+STATMENTS : { $$ = new iris::block_node(iris::block_node::ret_discard); }
+    | STATMENTS TOK_IDENTIFIER TOK_ASSIGN VALUE { $$ = $1; $$->add_statement(new iris::accessor_node($2, $4)); }
+    | STATMENTS TOK_IDENTIFIER TOK_REMOVE VALUE { $$ = $1; $$->add_statement(new iris::accessor_node($2, $4, iris::accessor_node::op_remove)); }
+    | STATMENTS TOK_IDENTIFIER TOK_APPEND VALUE { $$ = $1; $$->add_statement(new iris::accessor_node($2, $4, iris::accessor_node::op_append)); }
+    | STATMENTS MATCH_STAT { $$ = $1; $$->add_statement($2); }
+    | STATMENTS FUNCTION_CALL_STAT { $$ = $1; $$->add_statement($2); }
+    ;
+
+
+MATCH_STAT : TOK_MATCH TOK_LEFT_PAREN TOK_IDENTIFIER TOK_RIGHT_PAREN TOK_LEFT_BRACE MATCH_STATS TOK_RIGHT_BRACE { 
+       $$ = $6; $6->set_ident($3);
+       $$ -> set_location(@1.first_column, @1.first_line, @7.last_column, @7.last_line);
+   }
+
+MATCH_STATS : { $$ = new iris::match_node(""); }
+    | MATCH_STATS MATCH_CASE_COMBINE TOK_ASSIGN TOK_LEFT_ANGLE TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE { 
+        $$ = $1; 
+        $$->add_case(new iris::match_case_node($2, $6));
+    }
+    | MATCH_STATS MATCH_CASE_COMBINE TOK_ASSIGN TOK_LEFT_ANGLE VALUE { 
+        $$ = $1; 
+        $$->add_case(new iris::match_case_node($2, $5));
+    }
+    ;
+
+MATCH_CASE_COMBINE : TOK_NUMBER {
+        $$ = new iris::list_node();
+        auto vn = new iris::value_node(); 
+        vn->set_int($1); 
+        vn->set_location(@1.first_column, @1.first_line, @1.last_column, @1.last_line);
+        $$->add(vn);
+    }
+    | TOK_LITERAL {
+        $$ = new iris::list_node();
+        auto vn = new iris::value_node(); 
+        vn->set_string($1); 
+        vn->set_location(@1.first_column, @1.first_line, @1.last_column, @1.last_line);
+        $$->add(vn);
+    }
+    | MATCH_CASE_COMBINE TOK_OR TOK_NUMBER {
+        $$ = $1;
+        auto vn = new iris::value_node(); 
+        vn->set_int($3); 
+        vn->set_location(@3.first_column, @3.first_line, @3.last_column, @3.last_line);
+        $$->add(vn);
+    }
+    | MATCH_CASE_COMBINE TOK_OR TOK_LITERAL {
+        $$ = $1;
+        auto vn = new iris::value_node(); 
+        vn->set_string($3); 
+        vn->set_location(@3.first_column, @3.first_line, @3.last_column, @3.last_line);
+        $$->add(vn);
+    }
+    ;
+
+FUNCTION_CALL_STAT : TOK_IDENTIFIER TOK_LEFT_PAREN LIST_ELEMENTS TOK_RIGHT_PAREN { 
+        $$ = new iris::function_call_node($1);
+        $$ -> set_args($3);
+        $$ -> set_file((*root)->get_file()); 
+        $$ -> set_location(@1.first_column, @1.first_line, @4.last_column, @4.last_line);
+    }
+    | TOK_IDENTIFIER TOK_LEFT_PAREN TOK_RIGHT_PAREN { 
+        $$ = new iris::function_call_node($1);
+        $$ -> set_file((*root)->get_file()); 
+        $$ -> set_location(@1.first_column, @1.first_line, @3.last_column, @3.last_line);
+    }
+    ;
+
+LIST : TOK_LEFT_BRACKET TOK_RIGHT_BRACKET { $$ = new iris::list_node(); $$->set_location(@1.first_column, @1.first_line, @2.last_column, @2.last_line); }
+    | TOK_LEFT_BRACKET LIST_ELEMENTS TOK_RIGHT_BRACKET { $$ = $2; }
+    ;
+
+LIST_ELEMENTS : VALUE { $$ = new iris::list_node(); $$->add($1); }
+    | LIST_ELEMENTS TOK_COMMA VALUE { $$ = $1; $$->add($3); }
+    | TOK_IDENTIFIER { $$ = new iris::list_node(); $$->add(new iris::identifier_node($1)); }
+    | LIST_ELEMENTS TOK_COMMA TOK_IDENTIFIER { $$ = $1; $$->add(new iris::identifier_node($3)); }
+    ;
+
+VALUE : TOK_LITERAL { 
+        $$ = new iris::value_node(); 
+        $$->set_string($1); 
+        $$->set_location(@1.first_column, @1.first_line, 
+            @1.last_column, @1.last_line); 
+    }
+    | TOK_NUMBER { 
+        $$ = new iris::value_node(); 
+        $$->set_int($1); 
+        $$->set_location(@1.first_column, @1.first_line, 
+            @1.last_column, @1.last_line);
+    }
+    | LIST { 
+        $$ = new iris::value_node(); 
+        $$->set_list($1); 
+        $$->set_location(@1.first_column, @1.first_line,
+            @1.last_column, @1.last_line); 
+    }
+    | TOK_TRUE { 
+        $$ = new iris::value_node(); 
+        $$->set_boolean($1); 
+        $$->set_location(@1.first_column, @1.first_line, 
+            @1.last_column, @1.last_line); 
+    }
+    | TOK_FALSE { 
+        $$ = new iris::value_node(); 
+        $$->set_boolean($1); 
+        $$->set_location(@1.first_column, @1.first_line, 
+            @1.last_column, @1.last_line); 
+    }
+    | TOK_LEFT_BRACE SCOPE_STAT TOK_RIGHT_BRACE { 
+        $$ = new iris::value_node(); 
+        $$->set_scope($2); 
+        $$->set_location(@1.first_column, @1.first_line, 
+            @3.last_column, @3.last_line); 
+    }
+    | TOK_LEFT_PAREN TOK_RIGHT_PAREN TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE { 
+        auto fn = new iris::function_decl_node(); 
+        fn->set_block($4);
+        fn->set_location(@1.first_column, @1.first_line, 
+            @5.last_column, @5.last_line);
+        $$ = new iris::value_node(fn); 
+    }
+    | TOK_LEFT_PAREN TOK_RIGHT_PAREN LIST_ELEMENTS TOK_LEFT_BRACE STATMENTS TOK_RIGHT_BRACE {
+        if(! $3 -> is_fn_arglist() ) {
+            // spawn error here
+        }
+        auto fn = new iris::function_decl_node(); 
+        fn->set_block($5);
+        fn->set_location(@1.first_column, @1.first_line, 
+            @6.last_column, @6.last_line);
+        $$ = new iris::value_node(fn); 
+    }
+    | MATCH_STAT {
+        $$ = new iris::value_node();
+        $$ -> set_match_stat($1);
+        $$->set_location(@1.first_column, @1.first_line, 
+            @1.last_column, @1.last_line);
+    }
+    | FUNCTION_CALL_STAT {
+        $$ = new iris::value_node(); 
+        $$ -> set_fn_call_stat($1);
+        $$->set_file((*root)->get_file()); 
+        $$->set_location(@1.first_column, @1.first_line, 
+            @1.last_column, @1.last_line);
+    }
+    ;
+
+SCOPE_STAT : { $$ = new iris::block_node(iris::block_node::ret_scope); }
+    | SCOPE_STAT TOK_IDENTIFIER TOK_ASSIGN VALUE { $$ = $1; $$->add_statement(new iris::accessor_node($2, $4)); }
+    ;
+
+%%

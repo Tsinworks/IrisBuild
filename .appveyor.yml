@@ -1,0 +1,26 @@
+version: "{build}"
+
+os: Visual Studio 2017
+
+platform:
+  - x64
+
+build:
+  parallel: true  # enable MSBuild parallel builds
+  verbosity: minimal
+
+install:
+  - if not exist win_flex_bison-latest.zip appveyor DownloadFile "https://nchc.dl.sourceforge.net/project/winflexbison/win_flex_bison-latest.zip"
+  - 7z x -y -owinflexbison\ win_flex_bison-latest.zip > nul
+  - set Path=%CD%\winflexbison;%Path%
+  - win_flex --version
+  - win_bison --version
+
+build_script: 
+  - cmake -G"Visual Studio 15 2017 Win64" -H. -Bbuild -DCMAKE_BUILD_TYPE=Release -DZLIB_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/external/zlib/include -DZLIB_LIBRARY=%APPVEYOR_BUILD_FOLDER%/external/zlib/lib/x64_VS2017/zlibstatic.lib
+  - cmake --build build --target ibuild --config Release
+  - cmake --build build --target cl_tracker --config Release
+  - cmake --build build --target igen --config Release
+
+artifacts:
+  - path: build\bin\Release

@@ -1,0 +1,126 @@
+%{
+#ifdef _MSC_VER
+#pragma warning(disable:4005)
+#endif
+#define YY_NO_UNISTD_H
+#ifndef YY_TYPEDEF_YY_SCANNER_T
+#define YY_TYPEDEF_YY_SCANNER_T
+typedef void* yyscan_t;
+#endif
+#include "parse/types.h"
+#include "parse/context.h"
+#include "tokens.h"
+#define YY_NO_UNPUT
+#define YY_USER_ACTION \
+    yylloc->first_line = yylloc->last_line; \
+    yylloc->first_column = yylloc->last_column; \
+    for(int i = 0; yytext[i] != '\0'; i++) { \
+        if(yytext[i] == '\n') { \
+            yylloc->last_line++; \
+            yylloc->last_column = 0; \
+        } \
+        else { \
+            yylloc->last_column++; \
+        } \
+    }
+extern int yylex_init (yyscan_t* scanner);
+extern Context gContext;
+%}
+
+%option noyywrap
+%option never-interactive
+%option reentrant
+%option bison-bridge
+%option bison-locations
+%option yylineno
+
+DIGIT		    [0-9]
+ID			    [_a-zA-Z][_a-zA-Z0-9\.]*
+
+%%
+{DIGIT}+        { yylval->number = atoi(yytext); return NUMBER; }
+
+"namespace"     { return NAMESPACE; }
+"enum"          { gContext.SetParsingNewType(true); return ENUM; }
+"struct"        { gContext.SetParsingNewType(true); return STRUCT; }
+"interface"     { gContext.SetParsingNewType(true); return INTERFACE; }
+"const"         { return CONST; }
+"out"           { return OUT; }
+"array"         { return ARRAY; }
+
+"("             { return LEFT_PAREN; }
+")"             { return RIGHT_PAREN; }
+
+"<"             { return LEFT_ANGLE; }
+">"             { return RIGHT_ANGLE; }
+
+"{"             { gContext.SetLexAfterType(false); return LEFT_BRACE; }
+"}"             { gContext.SetLexAfterType(false); return RIGHT_BRACE; }
+
+"["             { return LEFT_BRACKET; }
+"]"             { return RIGHT_BRACKET; }
+
+"[["            { return LEFT_DUAL_BRACKET; }
+"]]"            { return RIGHT_DUAL_BRACKET; }
+
+","             { gContext.SetLexAfterType(false); return COMMA; }
+":"             { return COLON; }
+";"             { gContext.SetLexAfterType(false); return SEMICOLON; }
+"|"             { return OR; }
+
+"*"             { return MUL; }
+"#"             { return PRAGMA; }
+"&"             { return REFER; }
+
+{ID}            { 
+                    yylval->str = new std::string(yytext);
+                    return gContext.ParseIdentOrType(*yylval->str);
+                }
+\"[^\"]*\"		{
+	                yylval->str = new std::string(yytext);
+	                return LITERAL;
+                }
+[ \t]*
+"\/\/"[^\n\r]*
+\r\n						{yylineno++;}
+\n\r						{yylineno++;}
+\r							{yylineno++;}
+\n							{yylineno++;}
+%%
+
+#include <string>
+
+int Context::ParseIdentOrType(std::string const& str)
+{
+    if(Context::IsBuiltinType(str)) {
+        return TYPE_NAME;
+    }
+
+    if(m_decl_new_type) {
+        m_sym_table.insert(str);
+        m_decl_new_type = false;
+        return IDENTIFIER;
+    }
+
+    auto sym = m_sym_table.find(str);
+    if (!m_lex_after_type && sym != m_sym_table.end()) {
+        m_lex_after_type = true;
+        return TYPE_NAME;
+    }
+    return IDENTIFIER;
+}
+
+void yyerror(YYLTYPE* loc, yyscan_t scan, Node** root, const char* msg) {
+    gContext.Error(loc->first_line, loc->first_column, msg);
+}
+
+Node* Context::DoParse(const char* buffer, size_t size, const char* file)
+{
+    yyscan_t scanner = nullptr;
+    yylex_init(&scanner);
+    yy_scan_string(buffer, scanner);
+    Node* node = nullptr;
+    yyparse(scanner, (Node**)&node);
+    yylex_destroy(scanner);
+    return node;
+}

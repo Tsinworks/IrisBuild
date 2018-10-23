@@ -1,0 +1,8 @@
+.vs
+/build/**
+/_build/**
+.DS_Store
+.build
+/src/vm/tokens.h
+/src/vm/xbscanner.cpp
+/src/vm/xbparser.cpp

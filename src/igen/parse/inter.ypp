@@ -1,0 +1,266 @@
+%define api.pure full
+%locations
+%lex-param   { yyscan_t scanner }
+%parse-param { yyscan_t scanner }
+%parse-param { Node** root }
+%{
+#ifdef _MSC_VER
+#pragma warning(disable:4065)
+#endif
+#ifndef YY_TYPEDEF_YY_SCANNER_T
+#define YY_TYPEDEF_YY_SCANNER_T
+typedef void* yyscan_t;
+#endif
+#include "parse/context.h"
+#include "tokens.h"
+extern Context gContext;
+int yylex (YYSTYPE* t, YYLTYPE* loc, yyscan_t scan);
+extern void yyerror(YYLTYPE* loc, yyscan_t scan, Node** root, const char* msg);
+%}
+
+%union {
+    std::string*                str;
+    int                         number;
+    bool                        boolean;
+
+    AggregatedNode*             _aggregate;
+    AttribNode*                 _attrib;
+    TypeNode*                   _type;
+    EnumNode*                   _enum;
+    EnumValueNode*              _enum_value;
+    StructNode*                 _struct;
+    StructMemberNode*           _struct_member;
+    NodePtrs*                   _list;
+    MethodNode*                 _method;
+    InterfaceNode*              _interface;
+};
+
+%token LEFT_PAREN RIGHT_PAREN
+%token LEFT_BRACE RIGHT_BRACE
+%token LEFT_BRACKET RIGHT_BRACKET
+%token LEFT_DUAL_BRACKET RIGHT_DUAL_BRACKET
+%token COMMA COLON SEMICOLON REFER PRAGMA OUT OR
+
+%token NAMESPACE ENUM STRUCT INTERFACE ARRAY
+%token CONST MUL REF
+%token LEFT_ANGLE RIGHT_ANGLE
+
+%token <str> IDENTIFIER LITERAL TYPE_NAME
+%token <number> NUMBER
+
+%type <_attrib> annotation_stat annotation_stats
+%type <_aggregate> MAIN stats pragma_directive namespace_stat
+%type <_enum> enum_stat enum_header
+%type <_enum_value> enum_value
+%type <_type> type
+%type <_struct> struct_stat struct_header 
+%type <_struct_member> struct_member
+%type <_list> enum_stats struct_stats interface_stats method_params
+%type <_method> method_stat method_header
+%type <_interface> interface_stat interface_header
+
+%error-verbose
+%%
+
+MAIN : stats namespace_stat { 
+        *root = $1;
+        $1 -> Append($2);
+    }
+    | stats { *root = $1; }
+    ;
+
+namespace_stat : NAMESPACE IDENTIFIER LEFT_BRACE stats RIGHT_BRACE { 
+        $$ = $4;
+        $$ -> SetNamespace(*$2);
+    }
+    ;
+
+stats : { $$ = new AggregatedNode; }
+    | stats enum_stat { $$ = $1; $$ -> Append($2); }
+    | stats struct_stat { $$ = $1; $$ -> Append($2); }
+    | stats interface_stat { $$ = $1; $$ -> Append($2); }
+    | stats pragma_directive { 
+        $$ = $1; 
+        $$ -> Merge($2); 
+        delete $2;
+    }
+    ;
+
+pragma_directive : PRAGMA IDENTIFIER LITERAL {
+        if(*$2 == "include") {
+            std::string inc_file = $3->substr(1, $3->length()-2);
+            $$ = (AggregatedNode*)gContext.Include(inc_file);
+            delete $3;
+            delete $2;
+        } else { 
+            $$ = new AggregatedNode;
+        }
+    }
+    | PRAGMA IDENTIFIER IDENTIFIER {
+        $$ = new AggregatedNode; 
+    }
+    ;
+
+annotation_stat : LEFT_DUAL_BRACKET annotation_stats RIGHT_DUAL_BRACKET { $$ = $2; }
+    ;
+
+annotation_stats : annotation_stats COMMA IDENTIFIER LEFT_PAREN LITERAL RIGHT_PAREN { $$ = $1; $$ -> Set(*$3, *$5); delete $3; delete $5; }
+    | IDENTIFIER LEFT_PAREN LITERAL RIGHT_PAREN { $$ = new AttribNode(); $$ -> Set(*$1, *$3); }
+    ;
+
+type : CONST TYPE_NAME { $$ = new TypeNode(*$2, TypeNode::Constant); delete $2; }
+    | CONST TYPE_NAME MUL { $$ = new TypeNode(*$2, TypeNode::Constant | TypeNode::Pointer); delete $2; }
+    | CONST TYPE_NAME REF { $$ = new TypeNode(*$2, TypeNode::Constant | TypeNode::Reference); delete $2; }
+    | TYPE_NAME REF { $$ = new TypeNode(*$1, TypeNode::Reference);  delete $1;}
+    | TYPE_NAME MUL MUL { $$ = new TypeNode(*$1, TypeNode::PointerOfAddress);  delete $1; }
+    | TYPE_NAME MUL {$$ = new TypeNode(*$1, TypeNode::Pointer); delete $1;}
+    | TYPE_NAME { $$ = new TypeNode(*$1);  delete $1; }
+    | ARRAY LEFT_ANGLE TYPE_NAME RIGHT_ANGLE { $$ = new TypeNode(*$3);  delete $3; }
+    | ARRAY LEFT_ANGLE TYPE_NAME COMMA NUMBER RIGHT_ANGLE { $$ = new TypeNode(*$3);  delete $3; }
+    ;
+
+enum_stat : enum_header enum_stats RIGHT_BRACE SEMICOLON {
+        $$ = $1;
+        if($2) {
+            for(auto& n : *$2) {
+                $$->Add(std::move(n));
+            }
+            delete $2;
+        }
+    }
+    ;
+
+enum_header : annotation_stat ENUM IDENTIFIER LEFT_BRACE { $$ = new EnumNode(*$3, $1); delete $3; }
+    | ENUM IDENTIFIER LEFT_BRACE { $$ = new EnumNode(*$2, nullptr); delete $2; }
+    ;
+
+enum_stats : enum_stats COMMA enum_value {
+        $$ = $1;
+        NodePtr en($3);
+        $$->push_back(std::move(en));
+    }
+    | enum_value {
+        $$ = new NodePtrs();
+        NodePtr en($1);
+        $$->push_back(std::move(en));
+    }
+    ;
+
+enum_value : IDENTIFIER { $$ = new EnumValueNode(*$1, 0, nullptr); delete $1; }
+    | IDENTIFIER annotation_stat { $$ = new EnumValueNode(*$1, 0, $2); delete $1; }
+    ;
+
+struct_stat : struct_header struct_stats RIGHT_BRACE SEMICOLON {
+        $$ = $1;
+        if($2) {
+            for(auto& m : *$2) {
+                $$ -> Add(std::move(m));
+            }
+            delete $2;
+        }
+    }
+    ;
+
+struct_header : annotation_stat STRUCT IDENTIFIER LEFT_BRACE { $$ = new StructNode(*$3, $1); }
+    | STRUCT IDENTIFIER LEFT_BRACE { $$ = new StructNode(*$2); }
+    ;
+
+struct_stats : { $$ = nullptr; }
+    | struct_stats struct_member { 
+        $$ = $1; 
+        NodePtr node($2);
+        $$ -> push_back(std::move(node));     
+    }
+    | struct_member { 
+        $$ = new NodePtrs; 
+        NodePtr node($1);
+        $$ -> push_back(std::move(node)); 
+    }
+    ;
+
+struct_member : type IDENTIFIER SEMICOLON { $$ = new StructMemberNode(*$2, $1, nullptr); }
+    | type IDENTIFIER annotation_stat SEMICOLON { $$ = new StructMemberNode(*$2, $1, $3); }
+    ;
+
+interface_stat : interface_header interface_stats RIGHT_BRACE SEMICOLON {
+        $$ = $1;
+        if($2) {
+            for(auto& n : *$2) {
+                $$ -> AddMethod(std::move(n));
+            }
+            delete $2;
+        }
+    }
+    | annotation_stat interface_header interface_stats RIGHT_BRACE SEMICOLON {
+        $$ = $2;
+        $$ -> SetAttrib($1);
+        if($3) {
+            *$3;
+            delete $3;
+        }
+    }
+    ;
+
+interface_header : INTERFACE IDENTIFIER LEFT_BRACE { 
+        $$ = new InterfaceNode(*$2);
+    }
+    | INTERFACE IDENTIFIER COLON TYPE_NAME LEFT_BRACE {
+        $$ = new InterfaceNode(*$2, *$4);
+    }
+    ;
+
+interface_stats : { $$ = nullptr; } 
+    | interface_stats method_stat SEMICOLON {
+        $$ = $1;
+        NodePtr node($2);
+        $$ -> push_back(std::move(node));
+    }
+    | method_stat SEMICOLON {
+        $$ = new NodePtrs();
+        NodePtr node($1);
+        $$ -> push_back(std::move(node));
+    }
+    ;
+
+method_stat : method_header method_params RIGHT_PAREN method_decoration {
+        $$ = $1;
+        if($2) {
+            for(auto& n : *$2) {
+                $$->AddParam(std::move(n));
+            }
+            delete $2;
+        }
+    }
+    | method_header RIGHT_PAREN method_decoration {
+        $$ = $1;
+    }
+    ;
+
+method_header : type IDENTIFIER LEFT_PAREN {
+        $$ = new MethodNode(*$2);
+        $$ -> SetRet($1);
+        delete $2;
+    }
+    ;
+
+method_decoration : {} 
+    | CONST {}
+    | CONST annotation_stat {}
+    | annotation_stat {}
+    ;
+
+method_params : type IDENTIFIER {
+        $$ = new NodePtrs;
+        NodePtr pn(new ParamNode($1, *$2));
+        $$ -> push_back( std::move(pn) ); 
+        delete $2;
+    }
+    | method_params COMMA type IDENTIFIER {
+        $$ = $1;
+        NodePtr pn(new ParamNode($3, *$4));
+        $$ -> push_back( std::move(pn) ); 
+        delete $4;
+    }
+    ;
+
+%%
