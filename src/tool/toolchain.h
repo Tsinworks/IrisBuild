@@ -8,6 +8,7 @@ namespace iris
         cxx_c_objcxx_objc,
         rust,
         mono_csharp,
+		java,
         dotnetcore_csharp,
     };
 

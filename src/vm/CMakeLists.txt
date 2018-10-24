@@ -11,6 +11,8 @@ cproj.h
 cproj.cc
 csproj.h
 csproj.cc
+androidproj.h
+androidproj.cc
 import.h
 import.cc
 solution.h

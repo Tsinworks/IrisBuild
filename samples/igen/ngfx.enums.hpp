@@ -13,6 +13,12 @@ namespace ngfx {
 		Raytracing
 	};
 
+	enum PipelineType {
+		Graphics,
+		Compute,
+		RayTracing
+	};
+
     [[vulkan("VkFormat"), metal("MTLPixelFormat")]]
     enum PixelFormat {
         Invalid,
@@ -146,7 +152,8 @@ namespace ngfx {
     enum ResourceState {
         VertexBuffer,
         UniformBuffer,
-        UnorderedAccess
+        UnorderedAccess,
+		RaytraceAccelerationStructure
     };
 
 	enum StorageMode {

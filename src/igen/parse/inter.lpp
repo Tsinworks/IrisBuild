@@ -48,7 +48,7 @@ ID			    [_a-zA-Z][_a-zA-Z0-9\.]*
 "out"           { return OUT; }
 "array"         { return ARRAY; }
 
-"("             { return LEFT_PAREN; }
+"("             { gContext.SetLexAfterType(false); return LEFT_PAREN; }
 ")"             { return RIGHT_PAREN; }
 
 "<"             { return LEFT_ANGLE; }

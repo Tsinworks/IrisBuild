@@ -199,6 +199,9 @@ interface_stat : interface_header interface_stats RIGHT_BRACE SEMICOLON {
             delete $3;
         }
     }
+	| INTERFACE IDENTIFIER SEMICOLON {
+		$$ = new InterfaceNode(*$2);
+	}
     ;
 
 interface_header : INTERFACE IDENTIFIER LEFT_BRACE { 

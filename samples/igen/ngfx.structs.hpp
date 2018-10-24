@@ -58,7 +58,9 @@ namespace ngfx {
 	enum BufferUsage {
         VertexBuffer,
         IndexBuffer,
-        UniformBuffer
+        UniformBuffer,
+		UnorderedAccess,
+		AccelerationStructure
 	};
 	[[bitmask("true")]]
 	enum TextureUsage {
@@ -72,6 +74,7 @@ namespace ngfx {
 		uint64		deviceMask;
 	};
 	struct TextureDesc {
+		TextureUsage usages;
 		PixelFormat format;
 		uint32		width;
 		uint32		height;
@@ -79,7 +82,6 @@ namespace ngfx {
 		uint32		layers;
 		uint32		mipLevels;
 		uint64		deviceMask;
-		TextureUsage usages;
 	};
 	struct RaytracingASDesc {
 		

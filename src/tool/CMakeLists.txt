@@ -4,6 +4,8 @@ build.cc
 build_cproj.cc
 toolchain.h
 toolchain.cc
+android.h
+android.cc
 msvc.h
 msvc.cc
 clang.h

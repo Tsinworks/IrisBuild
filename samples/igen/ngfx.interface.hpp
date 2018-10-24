@@ -1,13 +1,15 @@
 #include "ngfx.structs.hpp"
 
 namespace ngfx {
+	interface Device;
+
     interface Blob {
-        const void* Data() const;
-        uint64      Length() const;
+        const void*			Data() const;
+        uint64				Length() const;
     };
     interface Function {
-        const char* EntryPoint();
-        const Blob* Bundle();
+        const char*			EntryPoint();
+        const Blob*			Bundle();
     };
     struct RenderPipelineDesc {
         RasterizerState     rasterizer;
@@ -20,32 +22,39 @@ namespace ngfx {
         uint32              deviceMask;
     };
     struct ComputePipelineDesc {
-
+		Function*			function;
+		uint32				deviceMask;
     };
-    struct RaytracingPipelineDesc {
-
+    struct RaytracePipelineDesc {
+		uint32				maxTraceRecurseDepth;
+		array<Function*>	functions;
     };
 	struct RenderpassDesc {
 
 	};
     interface Resource {
-		void*			Map(uint64 offset, uint64 size);
-		void			Unmap(void* addr);
+		void*				Map(uint64 offset, uint64 size);
+		void				Unmap(void* addr);
+		void				SetName(string name);
     };
+	interface TextureView;
 	[[vulkan("VkImage"), metal("id<MTLTexture>")]]
     interface Texture : Resource {
-		PixelFormat Format() const;
+		PixelFormat			Format() const;
+		TextureView*		NewView(Result* result);
     };
 	interface TextureView {
-		const Texture*	GetTexture() const;
-		TextureUsage	GetUsage() const;
+		const Texture*		GetTexture() const;
+		TextureUsage		GetUsage() const;
 	};
+	interface BufferView;
 	[[vulkan("VkBuffer"), metal("id<MTLBuffer>")]]
     interface Buffer : Resource {
+		BufferView*			NewView(Result* result);
     };
 	interface BufferView {
-		const Buffer*	GetBuffer() const;
-		BufferUsage		GetUsage() const;
+		const Buffer*		GetBuffer() const;
+		BufferUsage			GetUsage() const;
 	};
 	interface RaytracingAS {
 
@@ -62,87 +71,81 @@ namespace ngfx {
     interface Framebuffer {
 
     };
-	[[vulkan("VkRenderpass")]]
-    interface Renderpass {
-
-    };
 	[[vulkan("VkSwapchain")]]
     interface Swapchain {
-		Texture* CurrentTexture();
+		Texture*			CurrentTexture();
     };
 	[[transient("frame")]]
 	interface BindGroup {
-		void SetSampler(uint32 id, ShaderStage stage, const Sampler* texture);
-		void SetTexture(uint32 id, ShaderStage stage, const TextureView* texture);
-		void SetBuffer(uint32 id, ShaderStage stage, const BufferView* texture);
+		void				SetSampler(uint32 id, ShaderStage stage, const Sampler* texture);
+		void				SetTexture(uint32 id, ShaderStage stage, const TextureView* texture);
+		void				SetBuffer(uint32 id, ShaderStage stage, const BufferView* texture);
 	};
     interface Pipeline {
-		BindGroup*  NewBindGroup(Result * result);
-		Device*		GetDevice() const;
+		BindGroup*			NewBindGroup(Result* result);
+		Device*				GetDevice();
     };
-
     interface RenderPipeline : Pipeline {
 
     };
-    
+	[[vulkan("VkRenderpass")]]
+	interface Renderpass {
+		RenderPipeline*		NewRenderPipeline(const RenderPipelineDesc* desc, Result* result);
+	};
     interface ComputePipeline : Pipeline {
 
     };
-
     interface RaytracePipeline : Pipeline {
 
     };
 	[[vulkan("VkCommandBuffer"), metal("id<MTLCommandBuffer>")]]
     interface CommandBuffer {
-        Result NewRenderEncoder();
-        Result NewComputeEncoder();
-		Result NewBlitEncoder();
-        Result NewParallelRenderEncoder();
-        Result NewRaytracingEncoder();
-        Result Submit();
+        RenderEncoder*		NewRenderEncoder(Result* result);
+        ComputeEncoder*		NewComputeEncoder(Result* result);
+		Result				NewBlitEncoder();
+        Result				NewParallelRenderEncoder();
+        RaytraceEncoder*	NewRaytraceEncoder(Result* result);
+        Result				Commit();
     };
 	[[vulkan("VkQueue"), metal("id<MTLQueue>")]]
     interface CommandQueue {
-		CommandBuffer* NewCommandBuffer() [[transient("true")]];
+		CommandBuffer*		NewCommandBuffer() [[transient("true")]];
     };
-
     interface CommandEncoder {
-        void EndEncode();
+		void				SetPipeline(Pipeline* pipeline);
+		void				SetBindGroup(const BindGroup* bindGroup);
+        void				EndEncode();
     };
-
-    interface RenderEncoder {
-        void SetRenderPipepline(const RenderPipeline * render);
-		void BindGroup(const BindGroup* bind);
-        void Draw();
-        void EndRenderpass();
-        void Present(Swapchain* swapchain);
+    interface RenderEncoder : CommandEncoder {
+        void				Draw();
+        void				Present(Swapchain* swapchain);
     };
-
-    interface ComputeEncoder {
-        void Dispatch(int x, int y, int z);
+    interface ComputeEncoder : CommandEncoder {
+        void				Dispatch(int x, int y, int z);
     };
-
-    interface RaytraceEncoder {
-        void TraceRay(int width, int height);
+    interface RaytraceEncoder : CommandEncoder {
+		void				BuildAS();
+        void				TraceRay(int width, int height);
     };
 	[[vulkan("VkFence"), metal("id<MTLFence>")]]
     interface Fence {
-        void Signal();
+        void				Signal();
     };
 	[[vulkan("VkDevice"), metal("id<MTLDevice>")]]
     interface Device {
-		CommandQueue*	NewQueue();
-        Shader*			NewShader();
-        Renderpass*		NewRenderpass(const RenderpassDesc* desc, Result* result) [[gen_rc("")]];
-		Texture*		NewTexture(const TextureDesc* desc, StorageMode mode, Result* result);
-        Buffer*			NewBuffer(const BufferDesc* desc, StorageMode mode, Result* result);
-		RaytracingAS*	NewRaytracingAS();
-		Sampler*		NewSampler(const SamplerDesc* desc, Result* result);
-        Fence*			NewFence();
-        Result			Wait();
+		CommandQueue*		NewQueue();
+        Shader*				NewShader();
+        Renderpass*			NewRenderpass(const RenderpassDesc* desc, Result* result) [[gen_rc("")]];
+		ComputePipeline*	NewComputePipeline(const ComputePipelineDesc* desc, Result* result);
+		RaytracePipeline*	NewRaytracePipeline(const RaytracePipelineDesc* desc, Result* result);
+		Texture*			NewTexture(const TextureDesc* desc, StorageMode mode, Result* result);
+        Buffer*				NewBuffer(const BufferDesc* desc, StorageMode mode, Result* result);
+		RaytracingAS*		NewRaytracingAS(const RaytracingASDesc* rtDesc, Result* result);
+		Sampler*			NewSampler(const SamplerDesc* desc, Result* result);
+        Fence*				NewFence();
+        Result				Wait();
     };
-
     interface Factory {
-        Swapchain* NewSwapchain(void* handle, void* reserved);
+        Swapchain*			NewSwapchain(void* handle, void* reserved);
     };
 }
