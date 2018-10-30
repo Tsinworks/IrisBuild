@@ -110,17 +110,16 @@ int Context::ParseIdentOrType(std::string const& str)
     return IDENTIFIER;
 }
 
-void yyerror(YYLTYPE* loc, yyscan_t scan, Node** root, const char* msg) {
+void yyerror(YYLTYPE* loc, yyscan_t scan, const char* msg) {
     gContext.Error(loc->first_line, loc->first_column, msg);
 }
 
-Node* Context::DoParse(const char* buffer, size_t size, const char* file)
+bool Context::DoParse(const char* buffer, size_t size, const char* file)
 {
     yyscan_t scanner = nullptr;
     yylex_init(&scanner);
     yy_scan_string(buffer, scanner);
-    Node* node = nullptr;
-    yyparse(scanner, (Node**)&node);
+    yyparse(scanner);
     yylex_destroy(scanner);
-    return node;
+    return true;
 }

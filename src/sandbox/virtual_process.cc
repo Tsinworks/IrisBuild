@@ -61,14 +61,35 @@ namespace iris
     uint64_t virtual_process_client::find_first_file(wstring const& file_name, find_file_dataw& data)
     {
         tcp_stream str(m_sock);
+        // write method name,
         rpc_object obj("virtual_process", "find_first_file");
-        //obj.add_param("file_name", file_name);
-        //obj.add_param("data", data);
-        //obj.add_return("return0");
-        //size_t len = file_name.size() * sizeof(wstring::value_type);
-        //s.write(file_name);
-        //s.write();
-        //s.read();
+        // write params
+        obj.add_in_param<wstring>("file_name", file_name);
+        obj.add_inout_param<find_file_dataw>("data", data);
+        obj.call(m_sock);
+        uint64_t ret = obj.get_ret<uint64_t>();
+        return ret;
+    }
+    uint64_t virtual_process_server::find_first_file(wstring const& file_name, find_file_dataw& data)
+    {
+        // read class name, read method name,
+
+        // read param num
+
+        // read param 0, type of param
+
+        // deserialize to arg 0
+
+        // read param 1, type of param
+
+        // deserialize to arg 1
+
+        // call impl of rpc 
+
+        // send back to client
+        // ret value and inout params
+        // close channel
+
         return uint64_t();
     }
     int virtual_process_client::find_next_file(uint64_t file_handle, find_file_dataw& data)
@@ -84,9 +105,12 @@ namespace iris
         tcp_stream str(m_sock);
         return 0;
     }
-    int virtual_process_client::create_process(wstring const& app_name, wstring const& cmd)
+    int virtual_process_client::create_process(
+        wstring const& app_name, wstring const& cmd, 
+        uint32_t flag, wstring const& cur_dir, 
+        startup_info& s_info, proc_info& p_info)
     {
-        tcp_stream str(m_sock);
+        
         return 0;
     }
     void virtual_process_client::close(uint64_t handle)
@@ -107,24 +131,68 @@ namespace iris
     {
         return 0;
     }
-    uint64_t virtual_process_server::find_first_file(wstring const & file_name, find_file_dataw & data)
-    {
-        return uint64_t();
-    }
     int virtual_process_server::find_next_file(uint64_t file_handle, find_file_dataw & data)
     {
         return 0;
     }
-    uint64_t virtual_process_server::create_file(wstring const & file_name, uint32_t access, uint32_t share_mode, uint32_t create_disposition, uint32_t flags_and_attribs, uint64_t template_file)
+    uint64_t virtual_process_server::create_file(wstring const & file_name, 
+        uint32_t access, uint32_t share_mode, uint32_t create_disposition, 
+        uint32_t flags_and_attribs, uint64_t template_file)
     {
         return uint64_t();
     }
-    int virtual_process_server::create_process(wstring const & app_name, wstring const & cmd)
+    int virtual_process_server::create_process(
+        wstring const& app_name, wstring const& cmd, 
+        uint32_t flag, wstring const& cur_dir, 
+        startup_info& s_info, proc_info& p_info)
     {
         return 0;
     }
     void virtual_process_server::close(uint64_t handle)
     {
+    }
+    void virtual_process_server::dispatch()
+    {
+        HANDLE completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+
+        auto new_conn = m_socket->accept();
+        rpc_proto_header hdr = {};
+        auto len = new_conn->recv((char*)&hdr, sizeof(hdr));
+        if (hdr.call == rpc_type::hand_shake) {
+            new_conn->send((char*)&hdr, sizeof(hdr));
+
+            new_conn->recv((char*)&hdr, sizeof(hdr));
+            if (hdr.call == rpc_type::call_sync) {
+                int len = hdr.bytes;
+                // read method
+                rpc_data_type d_t;
+                new_conn->recv((char*)&d_t, 1);
+                switch (d_t) {
+                case rpc_data_type::string:
+                {
+                    new_conn->recv((char*)&d_t, 1);
+                    new_conn->recv((char*)&d_t, 1);
+                    break;
+                }
+                case rpc_data_type::string16:
+                    break;
+                case rpc_data_type::boolean:
+                    break;
+                case rpc_data_type::uint8:
+                    break;
+                case rpc_data_type::uint32:
+                    break;
+                case rpc_data_type::uint64:
+                    break;
+                case rpc_data_type::none:
+                    break;
+                case rpc_data_type::object:
+                    break;
+                case rpc_data_type::list:
+                    break;
+                }
+            }
+        }
     }
 }
 

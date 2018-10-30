@@ -209,81 +209,99 @@ namespace iris
         string const& cxxflags, 
         string& out_obj) const
     {
-        const scope*rs          = proj_scope;
-        string      tar_path    = value::extract_string(proj_scope->get_value("target_path"));
-        string      tar_conf    = value::extract_string(rs->get_value_in_scope("target_config", nullptr));
-        string      cfkey       = string("msvc.c_flags_") + tar_conf;
-        string      cppfkey     = string("msvc.cxx_flags_") + tar_conf;
-        string_list dc_flags    = value::extract_string_list(rs->get_value_in_scope(cfkey, nullptr));
-        string_list dcxx_flags  = value::extract_string_list(rs->get_value_in_scope(cppfkey, nullptr));
-        string_list pc_flags    = value::extract_string_list(proj_scope->get_value("c_flags"));
-        string_list pcxx_flags  = value::extract_string_list(proj_scope->get_value("cxx_flags"));
+        auto src_t = source.type();
         string_list cmdlist;
-        cmdlist.push_back(m_cl);
-        cmdlist.push_back("/nologo");
-        //cmdlist.push_back("/showIncludes");
-        cmdlist.push_back("/source-charset:utf-8");
-        cmdlist.push_back("/execution-charset:utf-8");
-        if (m_arch == architecture::x64)
-        {
-            //cmdlist.push_back("-m64");
+        if (src_t == source_file_type::rc) {
+          cmdlist.push_back(m_rc);
+          cmdlist.push_back("/nologo");
+          cmdlist.push_back("/n");
+          cmdlist.push_back("/fo");
+
+          string res_pth = path::join(bld_dir, source.original() + ".res");
+          string dir = path::file_dir(res_pth);
+          path::make(dir);
+          out_obj = res_pth;
+          cmdlist.push_back(quote(res_pth));
+          cmdlist.push_back(quote(source.get_abspath()));
         }
-        if (source.type() == source_file_type::c)
+        else
         {
+          const scope*rs = proj_scope;
+          string      tar_path = value::extract_string(proj_scope->get_value("target_path"));
+          string      tar_conf = value::extract_string(rs->get_value_in_scope("target_config", nullptr));
+          string      cfkey = string("msvc.c_flags_") + tar_conf;
+          string      cppfkey = string("msvc.cxx_flags_") + tar_conf;
+          string_list dc_flags = value::extract_string_list(rs->get_value_in_scope(cfkey, nullptr));
+          string_list dcxx_flags = value::extract_string_list(rs->get_value_in_scope(cppfkey, nullptr));
+          string_list pc_flags = value::extract_string_list(proj_scope->get_value("c_flags"));
+          string_list pcxx_flags = value::extract_string_list(proj_scope->get_value("cxx_flags"));
+
+          cmdlist.push_back(m_cl);
+          cmdlist.push_back("/nologo");
+          //cmdlist.push_back("/showIncludes");
+          cmdlist.push_back("/source-charset:utf-8");
+          cmdlist.push_back("/execution-charset:utf-8");
+          if (m_arch == architecture::x64)
+          {
+            //cmdlist.push_back("-m64");
+          }
+          if (src_t == source_file_type::c)
+          {
             for (auto cf : dc_flags)
             {
-                cmdlist.push_back(cf);
+              cmdlist.push_back(cf);
             }
             for (auto cf : pc_flags)
             {
-                cmdlist.push_back(cf);
+              cmdlist.push_back(cf);
             }
             cmdlist.push_back("/TC");
-        }
-        else if (source.type() == source_file_type::cpp)
-        {
+          }
+          else if (src_t == source_file_type::cpp)
+          {
             for (auto cf : dcxx_flags)
             {
-                cmdlist.push_back(cf);
+              cmdlist.push_back(cf);
             }
             for (auto cf : pcxx_flags)
             {
-                cmdlist.push_back(cf);
+              cmdlist.push_back(cf);
             }
             cmdlist.push_back("/TP");
-        }
-        for (auto inc : additional_includes())
-        {
+          }
+          for (auto inc : additional_includes())
+          {
             cmdlist.push_back(string("/I\"") + inc + string("\""));
-        }
-        cmdlist.push_back(cxxflags);
-        cmdlist.push_back("/c");
-        cmdlist.push_back(quote(source.get_abspath()));
-        if (!path::is_absolute(source.original()))
-        {
+          }
+          cmdlist.push_back(cxxflags);
+          cmdlist.push_back("/c");
+          cmdlist.push_back(quote(source.get_abspath()));
+          if (!path::is_absolute(source.original()))
+          {
             string obj_pth = path::join(bld_dir, source.original() + ".o");
             string dir = path::file_dir(obj_pth);
             path::make(dir);
             out_obj = obj_pth;
             cmdlist.push_back(string("/Fo\"") + obj_pth + string("\""));
-        }
-        else // src file is absolute
-        {
+          }
+          else // src file is absolute
+          {
             out_obj = source.original() + ".o";
             cmdlist.push_back(string("/Fo\"") + out_obj + string("\""));
-        }
-        if (tar_conf == "debug")
-        {
+          }
+          if (tar_conf == "debug")
+          {
             cmdlist.push_back("/FS");
             string pdb_path = path::join(bld_dir, "vc.pdb");
             if (!tar_path.empty())
             {
-                string pdb_name = path::file_basename(tar_path);
-                string pdb_dir = path::file_dir(tar_path);
-                pdb_path = path::join(pdb_dir, pdb_name + ".pdb");
+              string pdb_name = path::file_basename(tar_path);
+              string pdb_dir = path::file_dir(tar_path);
+              pdb_path = path::join(pdb_dir, pdb_name + ".pdb");
             }
             string final_pdb_path = string("/Fd\"") + pdb_path + "\"";
             cmdlist.push_back(final_pdb_path);
+          }
         }
         return cmdlist;
     }

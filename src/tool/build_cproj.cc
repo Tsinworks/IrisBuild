@@ -138,7 +138,8 @@ namespace iris
         ddata.load();
         for (auto src : sources)
         {
-            if (src.is_c_source_file())
+            if (src.is_c_source_file() || 
+              (setting.plat == platform::windows && src.type() == source_file_type::rc))
             {
                 string obj_path;
                 string add_c_flags;

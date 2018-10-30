@@ -1,99 +1,160 @@
 #include "rpc.h"
 namespace iris
 {
+    rpc_stream& operator << (rpc_stream& s, rpc_proto_header& hdr) {
+        s << hdr.version;
+        s << hdr.magic;
+        s << (uint32_t&)(hdr.call);
+        s << hdr.bytes;
+        return s;
+    }
     rpc_object::rpc_object(string const& _class, string const& method)
         : m_class(_class)
         , m_method(method)
     {
     }
-    int rpc_object::serialize(rpc_buffer & buf)
+    int rpc_object::call(ext::socket& s)
     {
+        rpc_proto_header hdr = {
+            2018,
+            157841,
+            rpc_type::call_sync,
+            0
+        };
+        (*m_send) << hdr;
+        rpc_proto_header rsp = {
+            2018,
+            157841,
+            rpc_type::call_sync,
+            0
+        };
+
+        m_send->flush();
+        m_recv->flush();
         return 0;
     }
-    tcp_stream::tcp_stream(ext::socket & is)
-        : s(is)
+    rpc_send_stream::rpc_send_stream(ext::socket& s) 
+        : rpc_stream(rpc_stream::out)
+        , m_buffer(4096)
+        , m_s(s)
     {
-    }
-    tcp_stream::~tcp_stream()
-    {
-    }
-    int tcp_stream::write(string const & data)
-    {
-        return s.send(data.data(), data.size());
     }
 
-    int tcp_stream::read(string & data)
+    rpc_send_stream::~rpc_send_stream()
     {
-        return s.recv((char*)data.data(), data.size());
     }
 
-#define TCPSTREAM_RECV s.recv((char*)&val, sizeof(val)) == sizeof(val)
-
-    bool tcp_stream::read_uint8(uint8_t & val)
+    rpc_buffer& rpc_send_stream::buf()
     {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_int8(int8_t & val)
-    {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_uint16(uint16_t & val)
-    {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_int16(int16_t & val)
-    {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_uint32(uint32_t & val)
-    {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_int32(int32_t & val)
-    {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_uint64(uint64_t & val)
-    {
-        return TCPSTREAM_RECV;
-    }
-    bool tcp_stream::read_int64(int64_t & val)
-    {
-        return TCPSTREAM_RECV;
+        return m_buffer;
     }
 
-#define TCPSTREAM_SEND s.send((const char*)&val, sizeof(val)) == sizeof(val)
+    rpc_stream& rpc_send_stream::operator<<(string& data)
+    {
+        m_buffer.put(rpc_data_type::string);
+        m_buffer.put(uint32_t(data.size()));
+        m_buffer.put(data);
+        return *this;
+    }
 
-    bool tcp_stream::write_uint8(const uint8_t & val)
+    rpc_stream& rpc_send_stream::operator<<(wstring& data)
     {
-        return TCPSTREAM_SEND;
+        m_buffer.put(rpc_data_type::string16);
+        m_buffer.put(uint32_t(data.size()));
+        m_buffer.put(data);
+        return *this;
     }
-    bool tcp_stream::write_int8(const int8_t & val)
+
+    rpc_stream& rpc_send_stream::operator<<(uint8_t& data)
     {
-        return TCPSTREAM_SEND;
+        m_buffer.put(rpc_data_type::uint8);
+        m_buffer.put(data);
+        return *this;
     }
-    bool tcp_stream::write_uint16(const uint16_t & val)
+
+    rpc_stream& rpc_send_stream::operator<<(uint32_t& data)
     {
-        return TCPSTREAM_SEND;
+        m_buffer.put(rpc_data_type::uint32);
+        m_buffer.put(data);
+        return *this;
     }
-    bool tcp_stream::write_int16(const int16_t & val)
+
+    rpc_stream& rpc_send_stream::operator<<(uint64_t& data)
     {
-        return TCPSTREAM_SEND;
+        m_buffer.put(rpc_data_type::uint64);
+        m_buffer.put(data);
+        return *this;
     }
-    bool tcp_stream::write_uint32(const uint32_t & val)
+
+    void rpc_send_stream::flush()
     {
-        return TCPSTREAM_SEND;
+        m_s.send(m_buffer.data(), m_buffer.offset() + 1);
     }
-    bool tcp_stream::write_int32(const int32_t & val)
+
+    rpc_recv_stream::rpc_recv_stream(ext::socket& s)
+        : rpc_stream(rpc_stream::in)
+        , m_buffer(4096)
+        , m_s(s)
     {
-        return TCPSTREAM_SEND;
     }
-    bool tcp_stream::write_uint64(const uint64_t & val)
+
+    rpc_recv_stream::~rpc_recv_stream()
     {
-        return TCPSTREAM_SEND;
     }
-    bool tcp_stream::write_int64(const int64_t & val)
+
+    rpc_stream& rpc_recv_stream::operator<<(string& data)
     {
-        return TCPSTREAM_SEND;
+        return *this;
     }
+
+    rpc_stream& rpc_recv_stream::operator<<(wstring& data)
+    {
+        return *this;
+    }
+
+    rpc_stream& rpc_recv_stream::operator<<(uint8_t& data)
+    {
+        return *this;
+    }
+
+    rpc_stream& rpc_recv_stream::operator<<(uint32_t& data)
+    {
+        return *this;
+    }
+
+    rpc_stream& rpc_recv_stream::operator<<(uint64_t& data)
+    {
+        return *this;
+    }
+
+    void rpc_recv_stream::flush()
+    {
+    }
+
+    rpc_buffer::rpc_buffer(size_t prealloc)
+        : m_prealloc(prealloc)
+        , m_cur_offset(0)
+    {
+        m_ptr = (uint8_t*)_aligned_malloc(m_prealloc, 16);
+    }
+
+    rpc_buffer::~rpc_buffer()
+    {
+        if (m_ptr) {
+            _aligned_free(m_ptr);
+            m_ptr = nullptr;
+        }
+    }
+
+    void rpc_buffer::realloc(size_t new_sz)
+    {
+        if (m_ptr) {
+            void* newptr = _aligned_malloc(new_sz, 16);
+            memcpy(newptr, m_ptr, offset() + 1);
+            _aligned_free(m_ptr);
+            m_ptr = (uint8_t*)newptr;
+            m_prealloc = new_sz;
+        }
+    }
+
 }

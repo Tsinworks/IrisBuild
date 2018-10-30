@@ -10,6 +10,7 @@ namespace iris
 
         virtual void launch();
 
+        virtual void dispatch() = 0;
     protected:
         unique_ptr<ext::socket> m_socket;
     };

@@ -15,7 +15,6 @@ namespace iris
         m_socket->listen();
         // iocp impl
         auto new_client = m_socket->accept();
-        tcp_stream new_stream(*new_client);
         
         //new_stream.read_int32()
     }

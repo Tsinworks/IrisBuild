@@ -8,6 +8,17 @@ entries.cc
 dllmain.cc
 )
 source_group("virtual_proc" FILES ${VIRTUAL_PROC_SRCS})
-add_library(virtual_proc SHARED ${VIRTUAL_PROC_SRCS})
+
+set(MANAGER_SRCS
+file_manager.h
+file_manager.cc
+process_manager.h
+process_manager.cc
+settings.h
+settings.cc
+)
+source_group("mamagers" FILES ${MANAGER_SRCS})
+
+add_library(virtual_proc SHARED ${VIRTUAL_PROC_SRCS} ${MANAGER_SRCS})
 set_target_properties(virtual_proc PROPERTIES FOLDER "ibuild/build")
 target_link_libraries(virtual_proc PRIVATE "${CMAKE_SOURCE_DIR}/external/detours/lib.vc141.x64/detours.lib")

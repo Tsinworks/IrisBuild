@@ -83,8 +83,31 @@ namespace ngfx {
 		uint32		mipLevels;
 		uint64		deviceMask;
 	};
+	struct RaytracingAABBs
+	{
+		uint32 count;
+	};
+	struct RaytracingTriangles
+	{
+		uint32 count;
+	};
+	struct RaytracingGeometryData
+	{
+		RaytracingAABBs aabbs;
+		RaytracingTriangles triangles;
+	};
+	struct RaytracingGeometryDesc
+	{
+		RaytracingGeometryType type;
+		RaytracingGeometryFlags flag;
+		RaytracingGeometryData data;
+	};
 	struct RaytracingASDesc {
-		
+		AccelerationStructureType type;
+		AccelerationStructureBuildFlag flag;
+		uint32 instanceCount;
+		uint32 geometryCount;
+		const RaytracingGeometryDesc* pGeometries;
 	};
 	struct SamplerDesc {
 		FilterMode minFilter;

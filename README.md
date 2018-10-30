@@ -7,9 +7,11 @@ Introduction
 
 Supported Toolchains:
 
-* Visual Studio 2017
+* Visual Studio 2017+
 * Android NDK 14+
 * **iOS Build Environment on Windows**
+* Xcode 8+
+* Gradle
 
 The Details documented in the [Wiki][2]
 
