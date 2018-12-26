@@ -47,20 +47,16 @@ namespace iris
     }
     uint32_t virtual_process_client::get_file_attribs(wstring const& file_name)
     {
-        tcp_stream str(m_sock);
-
         return uint32_t();
     }
     int virtual_process_client::get_file_attribs_ex(
         wstring const& file_name, 
         uint32_t info_level, file_attrib_data & data)
     {
-        tcp_stream str(m_sock);
         return 0;
     }
     uint64_t virtual_process_client::find_first_file(wstring const& file_name, find_file_dataw& data)
     {
-        tcp_stream str(m_sock);
         // write method name,
         rpc_object obj("virtual_process", "find_first_file");
         // write params
@@ -94,7 +90,6 @@ namespace iris
     }
     int virtual_process_client::find_next_file(uint64_t file_handle, find_file_dataw& data)
     {
-        tcp_stream str(m_sock);
         return 0;
     }
     uint64_t virtual_process_client::create_file(
@@ -102,7 +97,6 @@ namespace iris
         uint32_t access, uint32_t share_mode, uint32_t create_disposition, 
         uint32_t flags_and_attribs, uint64_t template_file)
     {
-        tcp_stream str(m_sock);
         return 0;
     }
     int virtual_process_client::create_process(
@@ -115,9 +109,9 @@ namespace iris
     }
     void virtual_process_client::close(uint64_t handle)
     {
-        tcp_stream str(m_sock);
     }
     virtual_process_server::virtual_process_server(string const& addr, int port)
+		: rpc_server(addr, port)
     {
     }
     virtual_process_server::~virtual_process_server()
@@ -160,7 +154,7 @@ namespace iris
         auto len = new_conn->recv((char*)&hdr, sizeof(hdr));
         if (hdr.call == rpc_type::hand_shake) {
             new_conn->send((char*)&hdr, sizeof(hdr));
-
+			// parse request
             new_conn->recv((char*)&hdr, sizeof(hdr));
             if (hdr.call == rpc_type::call_sync) {
                 int len = hdr.bytes;

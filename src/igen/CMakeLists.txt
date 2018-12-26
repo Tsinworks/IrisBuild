@@ -45,3 +45,5 @@ add_custom_command(TARGET xige POST_BUILD
 
 target_include_directories(igen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(xige PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(igen PROPERTIES FOLDER "idl")
+set_target_properties(xige PROPERTIES FOLDER "idl")

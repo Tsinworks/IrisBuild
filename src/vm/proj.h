@@ -1,5 +1,6 @@
 #pragma once
 #include "node.h"
+#include "depend.h"
 #include "generator/gen.h"
 namespace iris
 {
@@ -40,7 +41,7 @@ namespace iris
         release,
         profile
     };
-    class proj_node : public parse_node
+    class proj_node : public depend_node
     {
     public:
         static target_type  get_target_type(string const& name);

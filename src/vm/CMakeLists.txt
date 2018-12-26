@@ -5,6 +5,8 @@ node.cc
 node.h
 function.h
 function.cc
+depend.h
+depend.cc
 proj.h
 proj.cc
 cproj.h

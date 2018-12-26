@@ -116,7 +116,7 @@ namespace iris
             return oss.str();
         }
         case value_type::string:
-            return m_str;
+            return unquote(m_str);
         case value_type::list:
         {
             string ret = "[";

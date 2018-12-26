@@ -210,7 +210,9 @@ namespace iris
             sources_list.push_back(rel_pth); // path rebase
         }
         // collect defines
-        definition_list = value::extract_string_list(proj->get_value("defines"));
+        for (auto & def : value::extract_string_list(proj->get_value("defines"))) {
+            definition_list.push_back(def);
+        }
         const scope* rs = proj;
         string cur_compiler = value::extract_string(rs->get_value_in_scope("cur_c_compiler", nullptr));
         string sys_def_key = cur_compiler + ".sys_defs";

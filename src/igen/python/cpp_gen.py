@@ -15,7 +15,7 @@ class EnumObj(object):
         self._enums.append(enum)
 
     def __str__(self):
-        src = 'enum ' + self._root.get_name() + ' : uint8 {\n'
+        src = 'enum class ' + self._root.get_name() + ' : uint8_t {\n'
         is_mask = self._root.get_attrib('bitmask')
         for n in self._enums:
             if is_mask:
@@ -26,6 +26,49 @@ class EnumObj(object):
         src += '};\n'
         return src
 
+class StructObj(object):
+    def __init__(self, struct):
+        self._root = struct
+        self._base = None
+        self._members = []
+
+    def set_base(self, base):
+        self._base = base
+
+    def append(self, member):
+        self._members.append(member)
+
+    def __str__(self):
+        struct_stat = 'struct ' + self._root.get_name() + ' {\n'
+        for sm in self._members:
+            nt = sm.get_type()
+            if nt:
+                struct_stat += '  '
+                stf = nt.get_type_flag()
+                if stf & xige.NodeFlag.Template:
+                    struct_stat += nt.get_name()
+                    num_targs = nt.num_template_params()
+                    if num_targs > 0:
+                        t0 = nt.template_param_at(0)
+                        struct_stat += '<'
+                        if t0:
+                            t0_name = t0.get_name()
+                            struct_stat += t0_name + '>'
+                elif stf & xige.NodeFlag.Pointer:
+                    if stf & xige.NodeFlag.Constant:
+                        struct_stat += 'const '
+                        struct_stat += nt.get_name()
+                        struct_stat += '*'
+                    else:
+                        struct_stat += nt.get_name() + '*'
+                else:
+                    struct_stat += nt.get_name()
+                struct_stat += ' '
+                        
+                struct_stat += sm.get_name()
+                struct_stat += ';\n'
+        struct_stat += '};\n'
+        return struct_stat
 
 class FunctionObj(object):
     def __init__(self, fn):
@@ -53,9 +96,7 @@ class FunctionObj(object):
         else:
             rname = ret_name + ' '
         fn_name = self._root.get_name()
-
         params = []
-
         for param in self._params:
             p_type = param.get_type()
             ptf = p_type.get_type_flag()
@@ -72,15 +113,50 @@ class FunctionObj(object):
 
             params.append(p_name + param.get_name())
         is_const = self._root.is_function_const()
-        return rname + fn_name + '(' + ', '.join(params) + ')' + (' const = 0' if is_const else ' = 0')
+        return rname + fn_name + '(' + ', '.join(params) + ')' + (' const' if is_const else '')
+
+class InterfaceObj(object):
+    def __init__(self, int_node):
+        self._root = int_node
+        self._funcs = []
+        self._is_forward_decl = int_node.is_forward_decl()
+
+    def append(self, fn):
+        self._funcs.append(fn)
+
+    def __str__(self):
+        int_stat = 'struct '
+        int_stat += self._root.get_name()
+        if not self._is_forward_decl:
+            bn = self._root.get_base_type()
+            if bn:
+                int_stat += ' : public '
+                int_stat += bn.get_name()
+            elif self._root.get_attrib('refcount'):
+                int_stat += ' : public Rc'
+            int_stat += ' {\n'
+            for method in self._funcs:
+                int_stat += '  virtual ' + str(method) + ' = 0;\n'
+            int_stat += '}'
+        int_stat += ';\n'  
+        return int_stat
 
 class CxxGenerator(object):
     def __init__(self):
         self.stack = []
         self._source = ''
         self._funcs = []
+        self._structs = []
+        self._interfaces = []
         self._enums = []
+
+        self._enum_objs = []
+        self._struct_objs = []
+        self._interface_objs = []
+        
         self._headers = []
+        self._impl_header = ''
+        self._impl_source = ''
 
     def add_header(self, header):
         self._headers.append(header)
@@ -96,51 +172,15 @@ class CxxGenerator(object):
         elif type == xige.NodeType.EnumValue:
             self._enums[-1].append(node)
         elif type == xige.NodeType.Struct:
-            self._source += 'struct '
-            self._source += node.get_name()
+            new_struct = StructObj(node)
             bn = node.get_base_type()
             if bn:
-                self._source += ' : public '
-                self._source += bn.get_name()
-            self._source += ' {\n'
+                new_struct.set_base(bn)
+            self._structs.append(new_struct)
         elif type == xige.NodeType.StructMember:
-            self._source += '    '
-            nt = node.get_type()
-            if nt:
-                stf = nt.get_type_flag()
-                if stf & xige.NodeFlag.Template:
-                    self._source += nt.get_name()
-                    num_targs = nt.num_template_params()
-                    if num_targs > 0:
-                        t0 = nt.template_param_at(0)
-                        self._source += '<'
-                        if t0:
-                            t0_name = t0.get_name()
-                            self._source += t0_name + '>'
-                elif stf & xige.NodeFlag.Pointer:
-                    if stf & xige.NodeFlag.Constant:
-                        self._source += 'const '
-                        self._source += nt.get_name()
-                        self._source += '*'
-                    else:
-                        self._source += nt.get_name() + '*'
-                else:
-                    self._source += nt.get_name()
-                self._source += ' '
-                
-                self._source += node.get_name()
-                self._source += ';\n'
+            self._structs[-1].append(node)
         elif type == xige.NodeType.Interface:
-            self._source += 'struct '
-            self._source += node.get_name()
-            if not node.is_forward_decl():
-                bn = node.get_base_type()
-                if bn:
-                    self._source += ' : public '
-                    self._source += bn.get_name()
-                elif node.get_attrib('refcount'):
-                    self._source += ' : public Rc'
-                self._source += ' {\n'
+            self._interfaces.append(InterfaceObj(node))
         elif type == xige.NodeType.Function:
             self._funcs.append(FunctionObj(node))
         elif type == xige.NodeType.FunctionParam:
@@ -153,28 +193,29 @@ class CxxGenerator(object):
         if t == xige.NodeType.Namespace:
             self._source += '}\n'
         elif t == xige.NodeType.Struct:
-            self._source += '};\n'
+            struct = self._structs.pop()
+            self._source += str(struct)
         elif t == xige.NodeType.Enum:
             enum = self._enums.pop()
             self._source += str(enum)
-        elif t == xige.NodeType.Interface:
-            if node.is_forward_decl():
-                self._source += ';\n'
-            else:
-                self._source += '};\n'
-        elif t == xige.NodeType.StructMember:
-            pass
         elif t == xige.NodeType.Function:
             fn = self._funcs.pop()
-            self._source += '    virtual '
-            self._source += str(fn)
-            self._source += ';\n'
+            self._interfaces[-1].append(fn)
+        elif t == xige.NodeType.Interface:
+            interface = self._interfaces.pop()
+            self._source += str(interface)
 
     def get_source(self):
         hdr_src = '#ifndef __ngfx_h__\n#define __ngfx_h__\n'
         for hdr in self._headers:
             hdr_src += '#include <' + hdr + '>\n'
         return hdr_src + self._source + '\n#endif'
+
+    def gen_impl_header(self, backend):
+        return ''
+
+    def gen_impl_source(self, backend):
+        return ''
 
 
 import argparse, sys

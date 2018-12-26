@@ -22,7 +22,7 @@ namespace iris
         node_ptr    m_parsed_node;
     };
 
-    class impclib_node : public parse_node
+    class impclib_node : public depend_node
     {
     public:
         explicit impclib_node(const char* name, parse_node* stats);
