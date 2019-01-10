@@ -183,7 +183,9 @@ namespace iris
         m_proj_filter[name].close();
     }
 
-    void vs_gen::write_c_proj(string const& name, scope* proj, xml_element_writer* writer, conf const& proj_conf, string_list const& inc_dirs, string_list const& defs)
+    void vs_gen::write_c_proj(string const& name, scope* proj, 
+        xml_element_writer* writer, conf const& proj_conf, 
+        string_list const& inc_dirs, string_list const& defs)
     {
         string_list sys_include_dir_list;
         string_list include_dir_list = inc_dirs;
@@ -202,6 +204,8 @@ namespace iris
         }
         string xb_path = path::current_executable();
 
+        auto vtype = value::extract_string(proj->get_value("type"));
+        auto tar_type = proj_node::get_target_type(vtype);
         // collect sources
         cproj_node::extract_srcs(proj->get_value("srcs"), proj_conf.proj_decl_dir, proj_conf.proj_dir, src_list);
         for (auto& src : src_list)
@@ -317,6 +321,12 @@ namespace iris
                 }
             }
             prop_group->sub_element("IncludePath")->text(sys_include_dirs.str().c_str());
+
+            if (tar_type == target_type::executable && 
+                (proj_conf.plat == "x64" || proj_conf.plat == "Win32")) {
+                // what if 'target_dir' defined ? 
+                prop_group->sub_element("TargetPath")->text(path::join(m_build_dir, "bin", name + ".exe").c_str());
+            }
         }
         writer->sub_element("Import", xml_attribs("Project", "$(VCTargetsPath)\\Microsoft.Cpp.targets"));
         writer->sub_element("ImportGroup", xml_attribs("Label", "ExtensionTargets"));
