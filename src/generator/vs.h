@@ -27,14 +27,29 @@ namespace iris
             string proj_decl_dir;
         };
 
+        struct nmake_settings
+        {
+            string_list defines;
+            string_list sys_defines;
+            string_list include_dirs;
+            string_list sources;
+            string      out_target;
+        };
+
     protected:
-        void            write_c_proj(string const& name, scope* proj, xml_element_writer* writer, 
+        void            write_c_proj(string const& name, scope* proj, 
+                            xml_element_writer* proj_writer, xml_element_writer* usr_writer,
                             conf const& proj_dir, string_list const& inc_dirs, string_list const& defs);
         string          extract_filter(string const& rel_path);
+        void            write_filters(string const& name, nmake_settings& nmake);
+        void            collect_target_nmake_settings(string const& name, scope* proj, conf const& proj_conf, nmake_settings& nmake);
     private:
         ofstream                m_sln_file;
         map<string, ofstream>   m_proj;
         map<string, string>     m_proj_guids;
         map<string, ofstream>   m_proj_filter;
+        map<string, ofstream>   m_proj_user;
+        string_list             m_sln_confs;
+        string_list             m_sln_platforms;
     };
 }

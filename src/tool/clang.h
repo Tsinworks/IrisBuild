@@ -87,5 +87,17 @@ namespace iris
         string          m_ar;
         string          m_lipo; // Apple requires a fat binary with both architectures (armv7 and arm64) in a single file
     };
-    
+
+    class win64_clang_tc : public base_clang_tc
+    {
+    public:
+        win64_clang_tc(platform in_plat = platform::windows,
+            architecture in_arch = architecture::x64);
+
+    };
+
+    class linux_clang_tc : public base_clang_tc
+    {
+
+    };
 }

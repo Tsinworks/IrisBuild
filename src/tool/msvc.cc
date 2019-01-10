@@ -35,7 +35,7 @@ namespace iris
         gs->set_string_value("cur_c_compiler", quote("msvc"));
         auto msvcs = gs->make_scope();
 
-        string_list cflags_dbg = { "/FS", "/GS", "/MDd", "/Od", "/ZI", "/Gy", "/Zc:inline" };
+        string_list cflags_dbg = { "/FS", "/GS", "/MDd", "/Od", "/Ob0", "/Zi", "/Gy", "/Zc:inline" };
         value cflags_dbgv = value::create_string_list(cflags_dbg);
         msvcs->set_value("c_flags_debug", cflags_dbgv, nullptr);
         cflags_dbg.push_back("/GR"); // enable rtti

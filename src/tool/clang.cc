@@ -3,7 +3,7 @@
 #include <regex>
 #include <fstream>
 #if _WIN32
-#include <ext/win32.hpp>
+    #include <ext/win32.hpp>
 #endif
 #include "common/log.hpp"
 #include "vm/vm.h"
@@ -759,5 +759,9 @@ namespace iris
             }
         }
         return link_args;
+    }
+    win64_clang_tc::win64_clang_tc(platform in_plat, architecture in_arch)
+        : base_clang_tc(in_plat, in_arch)
+    {
     }
 }
