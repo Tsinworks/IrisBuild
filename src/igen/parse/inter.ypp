@@ -125,7 +125,7 @@ annotation_stat : LEFT_DUAL_BRACKET annotation_stats RIGHT_DUAL_BRACKET { $$ = $
     ;
 
 annotation_stats : annotation_stats COMMA IDENTIFIER LEFT_PAREN LITERAL RIGHT_PAREN { $$ = $1; $$ -> Set(*$3, *$5); delete $3; delete $5; }
-    | IDENTIFIER LEFT_PAREN LITERAL RIGHT_PAREN { $$ = new AttribNode(); $$ -> Set(*$1, *$3); }
+    | IDENTIFIER LEFT_PAREN LITERAL RIGHT_PAREN { $$ = new AttribNode(); $$ -> Set(*$1, *$3); delete $1; delete $3; }
     ;
 
 type : CONST TYPE_NAME { $$ = new TypeNode(*$2, TypeNode::Constant); delete $2; }

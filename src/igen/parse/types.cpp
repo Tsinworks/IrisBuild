@@ -44,7 +44,7 @@ bool AttribNode::HasAttrib(std::string const & name) const
 
 void AttribNode::Set(const std::string& key, const std::string& value)
 {
-  m_prop_map[key] = value;
+  m_prop_map[key] = value.substr(1, value.length()-2);
 }
 
 AggregatedNode::AggregatedNode(String const& ns)
