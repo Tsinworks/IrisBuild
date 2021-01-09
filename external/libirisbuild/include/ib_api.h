@@ -101,12 +101,14 @@ IBVM_API const char* iris_context_get_cur_file(iris_context_t context);
 IBVM_API const char* iris_context_get_cur_dir(iris_context_t context);
 
 IBVM_API int iris_get_platform_count();
-IBVM_API const char* iris_get_platform_name(int index);
-IBVM_API int iris_get_platform_arch_count(const char* platform_name);
-IBVM_API const char* iris_get_platform_arch_name(const char* platform_name);
+IBVM_API const char* iris_get_platform_name(int plt_id);
+IBVM_API int iris_get_platform_arch_count(int plt_id);
+IBVM_API const char* iris_get_platform_arch_name(int plt_id, int arch_id);
 
 // ~ VM APIS
 // ~ End VM APIS
+
+IBVM_API void iris_scan_all_toolchains();
 
 // directly build
 IBVM_API void iris_build(const char* file,

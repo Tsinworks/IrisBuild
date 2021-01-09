@@ -113,6 +113,7 @@ main_ui::main_ui(main_app* app)
     browse_(nullptr),
     args_(nullptr),
     build_(nullptr),
+    chbox_(nullptr),
     target_os_(nullptr),
     target_arch_(nullptr),
     target_config_(nullptr),
@@ -121,6 +122,7 @@ main_ui::main_ui(main_app* app)
     progress_(nullptr),
     log_ent_(nullptr),
     content_(nullptr),
+    cur_sel_plt_(-1),
     vm_(nullptr) {
   init();
 }
@@ -207,6 +209,30 @@ void main_ui::on_progress(int percentage, void* data) {
   ui->build_progress(percentage);
 }
 
+void main_ui::generate_platform_selector() {
+    uiComboboxSetSelected(target_os_, cur_sel_plt_);
+    if (target_arch_) {
+        uiBoxDelete(chbox_, 3);
+    }
+    int arch_cnt = ::iris_get_platform_arch_count(cur_sel_plt_);
+    if (arch_cnt > 0) {
+        target_arch_ = uiNewCombobox();
+        for (int a = 0; a < arch_cnt; a++) {
+            uiComboboxAppend(target_arch_, iris_get_platform_arch_name(cur_sel_plt_, a));
+        }
+        uiBoxAppend(chbox_, uiControl(target_arch_), 0);
+        uiComboboxSetSelected(target_arch_, 0);
+    }
+}
+
+void main_ui::on_sel_platform(uiCombobox* combo) {
+    auto new_sel_plt = uiComboboxSelected(combo);
+    if (new_sel_plt != cur_sel_plt_) {
+        cur_sel_plt_ = new_sel_plt;
+        generate_platform_selector();
+    }
+}
+
 void main_ui::on_kick_log(void* data) {
   main_ui* ui = (main_ui*)data;
   ui->kick_log();
@@ -245,42 +271,42 @@ void main_ui::init() {
     uiBox* hbox = uiNewHorizontalBox();
     uiBoxSetPadded(hbox, 10);
 
-    uiBox* chbox = uiNewHorizontalBox();
-    uiBoxSetPadded(chbox, 10);
-
     build_ = uiNewButton("Build");
     uiBoxAppend(hbox, uiControl(build_), 0);
     UI_BUTTON_BIND(main_ui, build, build_);
 
-    target_os_ = uiNewCombobox();
-    for (auto os : oses) {
-      uiComboboxAppend(target_os_, os.c_str());
-    }
-    uiBoxAppend(chbox, uiControl(target_os_), 0);
-    uiComboboxSetSelected(target_os_, 0);
+    chbox_ = uiNewHorizontalBox();
+    uiBoxSetPadded(chbox_, 10);
 
-    target_arch_ = uiNewCombobox();
-    for (auto arch : arches) {
-      uiComboboxAppend(target_arch_, arch.c_str());
-    }
-    uiBoxAppend(chbox, uiControl(target_arch_), 0);
-    uiComboboxSetSelected(target_arch_, 0);
+    generators_ = uiNewCombobox();
+    uiComboboxAppend(generators_, "Visual Studio 2019");
+    uiComboboxAppend(generators_, "Xcode");
+    uiComboboxAppend(generators_, "Visual Studio Code");
+    uiComboboxSetSelected(generators_, 0);
+    uiBoxAppend(chbox_, uiControl(generators_), 0);
 
     target_config_ = uiNewCombobox();
     for (auto c : configs) {
-      uiComboboxAppend(target_config_, c.c_str());
+        uiComboboxAppend(target_config_, c.c_str());
     }
-    uiBoxAppend(chbox, uiControl(target_config_), 0);
+    uiBoxAppend(chbox_, uiControl(target_config_), 0);
     uiComboboxSetSelected(target_config_, 0);
+
+    int plt_cnt = ::iris_get_platform_count();
+    if (plt_cnt > 0) {
+        target_os_ = uiNewCombobox();
+        for (int i = 0; i < plt_cnt; i++) {
+            uiComboboxAppend(target_os_, ::iris_get_platform_name(i));
+        }
+        UI_COMBO_BIND(main_ui, platform, target_os_);
+        uiBoxAppend(chbox_, uiControl(target_os_), 0);
+        cur_sel_plt_ = 0;
+        generate_platform_selector();
+    }
 
     generate_ = uiNewButton("Generate Solutions");
     uiBoxAppend(hbox, uiControl(generate_), 0);
     UI_BUTTON_BIND(main_ui, generate, generate_);
-
-    generators_ = uiNewCombobox();
-    uiComboboxAppend(generators_, "Visual Studio 2019");
-    uiComboboxSetSelected(generators_, 0);
-    uiBoxAppend(chbox, uiControl(generators_), 0);
 
     browse_ = uiNewButton("Browse");
     uiBoxAppend(hbox, uiControl(browse_), 0);
@@ -291,7 +317,7 @@ void main_ui::init() {
     uiBoxAppend(hbox, uiControl(progress_), 0);
 
     uiFormAppend(confForm, "", uiControl(hbox), 0);
-    uiFormAppend(confForm, "", uiControl(chbox), 0);
+    uiFormAppend(confForm, "", uiControl(chbox_), 0);
   }
 
   {

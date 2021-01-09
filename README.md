@@ -14,11 +14,36 @@ Supported Toolchains:
 * PlayStation
 * Gradle
 
-The Details documented in the [Wiki][2]
+![](doc/screen_shot.png)
+
+## Features
+
+- [ ] **GN** build syntax support (Google's `Generate Ninja`)
+    - [x] Built-in variables: `target_os`,`target_arch`,`target_config`
+    - [x] Built-in function for targets: 
+        - [x] `shared_library`, `static_library`, `executable` (include apple app bundle, game **console** targets)
+        - [ ] `android_apk`
+            - [ ] maven package downloader
+            - [ ] AndroidManifest merging
+            - [x] apk signing
+            - [x] jni compilation and packaging
+        - [ ] `ohos_hap`, for **HUAWEI**'s **HarmonyOS**
+- [x] Built-in functions:
+    - [x] `zip` & `unzip`
+    - [x] `download` & `download_and_extract`
+- [x] Supported source file types:
+    - [x] **asm**, **c**, **cpp**, **objc**, **objcc**, **ispc**, **swift**, **pssl**
+    - [x] java (android)
+    - [ ] rust
+- [x] Visual Studio Code [syntax highlighter][3]
 
 Lastest Update
 ===
 
+* 2021/02/19 Updates:
+    * Add **AndroidApk** initially build support
+* 2021/01/09 Updates:
+    * Add SwiftLang support
 * 2020/11/24 Updates:
     * Add PS4/5 support
     * GN grammar compatible
@@ -211,8 +236,22 @@ on_post_build = () {
     * `app_id` : str, used for both `android apk` and `apple app`
     * `apple_plist_info` : str
     * `apple_code_sign_id` : str, code signing entity for apple app
-    * `as_android_apk` : bool, for android app target, otherwise android `elf` generated.
+    * `as_android_apk` : bool, for android app target (pure `native`), otherwise android `elf` generated.
     * `as_ohos_hap` : bool, for Huawei's `OHOS` app 
+* `android_apk`(name) { `scope` }
+    * `compileSdkVersion`: int
+    * `defaultConfig`: scope
+        * `applicationId`: str
+        * `minSdkVersion`: int
+        * `targetSdkVersion`: int
+        * `versionCode`: int
+        * `versionName`: str
+    * `java`: scope
+        * `srcDirs`: list
+        * `jarLibs`: list
+    * `resDir`: str
+    * `manifest`: str
+    * `jnis`: list
 
 ## Builtin Functions
 
@@ -277,6 +316,9 @@ for i in [
 }
 ```
 
+The Details documented in the [Wiki][2]
+
 
 [1]:https://github.com/kaleido3d/kaleido3d
 [2]:https://github.com/kaleido3d/IrisBuild/wiki
+[3]:https://github.com/kaleido3d/vscode-irisbuild
