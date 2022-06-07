@@ -44,4 +44,16 @@ if(WIN32)
             ${cldump_DLL}
             $<TARGET_FILE_DIR:ib>
 	    COMMENT "Copying ibvm.dll...")
+        
+    add_custom_command(TARGET ib POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${irisvfs_DRIVER}
+            $<TARGET_FILE_DIR:ib>
+	    COMMENT "Copying irisvfs2km.sys...")
+        
+    add_custom_command(TARGET ib POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${irisvfs_DLL}
+            $<TARGET_FILE_DIR:ib>
+	    COMMENT "Copying irisvfs2um.dll...")
 endif()
