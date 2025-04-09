@@ -20,6 +20,7 @@ class path {
 public:
   static string current_executable();
   static bool exists(string const& path);
+  static string file_basename(string const& file_path);
 };
 
 #if _WIN32

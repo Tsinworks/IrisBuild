@@ -51,24 +51,24 @@ int main(int argc, const char *argv[]) {
   args_parser args(argc, argv);
 #endif
   args.add_single_required_arg(R"(#(.*(\.ib|\.gn)))", "file",
-                               "specify input irisbuild file.")
+      args_parser::arg_action_store_const, "specify input irisbuild file.")
       .add_single_optional_arg("/version", "version")
       .add_single_optional_arg("/register", "register")
       .add_single_optional_arg("/gui", "gui")
       .add_single_optional_arg("/generate", "generate")
-      .add_single_optional_arg("/build", "build",
-                               args_parser::arg_action_store_const)
-      .add_single_optional_arg("/ide", "ide",
-                               args_parser::arg_action_store_const)
+      .add_single_optional_arg("/build", "build", args_parser::arg_action_store_const)
+      .add_single_optional_arg("/rebuild", "rebuild", args_parser::arg_action_store_const)
+      .add_single_optional_arg("/clean", "clean", args_parser::arg_action_store_const)
+      .add_single_optional_arg("/ide", "ide", args_parser::arg_action_store_const)
       .add_single_optional_arg("/target_os", "target_os",
-                               // ps4,ps5,windows,android,ios,macos(universal)
-                               args_parser::arg_action_store_const)
+          // ps4,ps5,windows,android,ios,macos(universal)
+          args_parser::arg_action_store_const)
       .add_single_optional_arg("/target_arch", "target_arch",
-                               // arm64,arm,x64,x86,universal
-                               args_parser::arg_action_store_const)
+          // arm64,arm,x64,x86,universal
+          args_parser::arg_action_store_const)
       .add_single_optional_arg("/target_config", "target_config",
-                               // debug;develop;release
-                               args_parser::arg_action_store_const);
+          // debug;develop;release
+          args_parser::arg_action_store_const);
   if (!args.do_parse()) {
     args.print_help();
     return 0;

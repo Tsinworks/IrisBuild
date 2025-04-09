@@ -389,6 +389,24 @@ string path::current_executable() {
   return string();
 #endif
 }
+
+string path::file_basename(string const& file_path) {
+    auto path_sep = file_path.find_last_of("/\\");
+    auto ext_sep = file_path.find_last_of(".");
+    if (path_sep != string::npos) {
+        if (ext_sep != string::npos && ext_sep > path_sep)
+            return file_path.substr(path_sep + 1, ext_sep - path_sep - 1);
+        else
+            return file_path.substr(path_sep + 1, file_path.length() - path_sep - 1);
+    }
+    else {
+        if (ext_sep != string::npos && ext_sep > 0)
+            return file_path.substr(0, ext_sep);
+        else
+            return file_path;
+    }
+}
+
 bool path::exists(string const& path) {
 #if _WIN32
     return PathFileExistsA(path.c_str()) == TRUE;

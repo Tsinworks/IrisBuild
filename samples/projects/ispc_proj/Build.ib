@@ -1,0 +1,38 @@
+
+source_set("raster_pri") {
+    sources = [
+        "concurrentqueue.h",
+        "Mesh_p.h",
+        "Raster.isph",
+        "simd_utils.natvis",
+        "SIMDDepthBuffer.cpp",
+        "SIMDRaster.cpp",
+        "SIMDRaster.h",
+        "SIMDRasterOps.ispc",
+        "SoATriangles.cpp",
+        "SoATriangles.h",
+        "Threading.cpp",
+        "Threading.h",
+        "vectorlist.hpp",
+        "CpuFeature.cpp",
+        "CpuFeature.h",
+        "CpuFeature.h",
+        "CpuFeature.h",
+        "SceneLoader.cpp",
+        "SceneLoader.h",
+        "lodepng.cpp",
+        "Task.cpp",
+        "Task.h",
+        "ScopeTimer.cpp",
+        "ScopeTimer.h",
+        "SIMDMesh.cpp",
+        "atomic.asm"
+    ]
+    visibility = [ ":*" ]
+}
+
+shared_library("libraster") {
+    include_dirs = [ "." ]
+    deps = [ ":raster_pri" ]
+    # frameworks = [ "Metal", "MetalKit", "simd" ]
+}

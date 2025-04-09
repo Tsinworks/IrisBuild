@@ -1,0 +1,35 @@
+source_set("application_pri") {
+    sources = [
+        "Application/AppDelegate.h",
+        "Application/AppDelegate.m",
+        "Application/main.m",
+        "Application/ViewController.mm",
+        "Application/ViewController.h",
+    ]
+    //match(target_os) {
+    //    "macOS" => {
+            //sources += [
+            //    "Application/macOS/"
+            //]
+    //    }
+    //}
+    visibility = [ ":*" ]
+}
+
+source_set("renderer_pri") {
+    sources = [
+        "Renderer/Renderer.h",
+        "Renderer/Renderer.mm",
+        "Renderer/Scene.h",
+        "Renderer/Scene.mm",
+        "Renderer/Transforms.h",
+        "Renderer/Transforms.mm"
+    ]
+    visibility = [ ":*" ]
+}
+
+executable("RTApp") {
+    include_dirs = [ "Renderer" ]
+    deps = [ ":renderer_pri", ":application_pri" ]
+    frameworks = [ "Metal", "MetalKit", "simd" ]
+}

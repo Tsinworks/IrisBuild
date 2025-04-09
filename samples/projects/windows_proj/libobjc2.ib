@@ -1,0 +1,134 @@
+
+build_ver = ""
+
+//echo(android)
+
+source_set("libobjc2_asm") {
+	sources = [
+		"objc_msgSend.S",
+		"block_trampolines.S"
+	]
+	visibility = [ ":*" ]
+}
+
+match(target_os) {
+	"windows" => {
+		echo("hello windows")
+	},
+	"android" => {
+		echo("hello android")
+	},
+	"macos" => {
+		echo("hello Darwin...")
+if(has_xcode) {
+echo(macos)
+echo("has xcode")
+}
+	}
+}
+
+# -DGNUSTEP -D__OBJC_RUNTIME_INTERNAL__=1
+
+source_set("libobjc2_cc") {
+	sources = [
+		"NSBlocks.m",
+		"Protocol2.m",
+		"associate.m",
+		"blocks_runtime.m",
+		"properties.m",
+		"alias_table.c",
+		"block_to_imp.c",
+		"caps.c",
+		"category_loader.c",
+		"class_table.c",
+		"dtable.c",
+		"encoding2.c",
+		"hooks.c",
+		"ivar.c",
+		"loader.c",
+		"mutation.m",
+		"protocol.c",
+		"runtime.c",
+		"sarray2.c",
+		"selector_table.c",
+		"sendmsg2.c",
+		//"gc_boehm.c",
+		"gc_none.c",
+		"arc.mm",
+
+		"objc/Availability.h",
+		"objc/Object.h",
+		"objc/Protocol.h",
+		"objc/blocks_private.h",
+		"objc/blocks_runtime.h",
+		"objc/capabilities.h",
+		"objc/developer.h",
+		"objc/encoding.h",
+		"objc/hooks.h",
+		"objc/message.h",
+		
+		"objc/objc-api.h",
+		"objc/objc-arc.h",
+		"objc/objc-auto.h",
+		"objc/objc-class.h",
+		"objc/objc-runtime.h",
+		"objc/objc-visibility.h",
+		"objc/objc.h",
+		"objc/runtime-deprecated.h",
+		"objc/runtime.h",
+		"objc/slot.h",
+
+		"Block.h",
+		"Block_private.h",
+
+		"eh_win32_msvc.cc"
+		# , "eh_personality.cc"
+	]
+
+	visibility = [ ":*" ]
+}
+
+
+source_set("libobjc2_blocks") {
+	sources = [
+	]
+}
+
+# -fobjc-runtime=gnustep-2.0
+# -Wno-deprecated-objc-isa-usage -Wno-objc-root-class
+# -Xclang -x -Xclang assembler-with-cpp
+# -Xclang -x -Xclang objective-c
+# -Xclang -x -Xclang objective-c++
+# -m64
+
+config("internal_config") {
+	defines = []
+	cflags = []
+	cflags_cc = []
+	cflags_swift = []
+	//@priv defines = []
+	private_include_dirs = []
+	include_dirs = []
+	configs = [
+		"//build/config/compiler:wexit_time_destructors",
+		":internal_config_base",
+		":v8_header_features",
+	]
+}
+
+shared_library("libobjc2") {
+	force_clang = true
+	configs = [":internal_config"]
+	//cflags += ["/O0"]
+	//defines += ["_WIN32"]
+    include_dirs = ["objc", "."]
+	deps = [":libobjc2_cc", ":libobjc2_asm"]
+	libs = ["kernel32.lib", "user32.lib", "oldnames.lib"]
+	defines = ["__OBJC_RUNTIME_INTERNAL__=1", "_WIN32", "GNUSTEP", "TYPE_DEPENDENT_DISPATCH", "objc_EXPORTS=1", "GC_DEBUG", "NO_LEGACY"]
+}
+
+/*
+executable("mainOp") {
+	deps = [":op"]
+}
+*/
