@@ -1,0 +1,26 @@
+source_set("application_pri") {
+    sources = [
+        "AppDelegate.h",
+        "AppDelegate.m",
+        "main.m",
+        "GameViewController.m",
+        "GameViewController.h",
+    ]
+    visibility = [ ":*" ]
+}
+
+source_set("renderer_pri") {
+    sources = [
+        "Renderer.h",
+        "Renderer.m",
+        "Shaders.metal",
+    ]
+    visibility = [ ":*" ]
+}
+
+// TODO: storayboard & assetcatalog compile
+executable("MetalApp") {
+    include_dirs = [ "." ]
+    deps = [ ":renderer_pri", ":application_pri" ]
+    frameworks = [ "Metal", "MetalKit", "simd" ]
+}

@@ -1,0 +1,18 @@
+rust_cargo("swarm-rs") {
+    path = "swarm-rs"
+}
+
+executable("main-compute") {
+    sources = [
+        "test.cu",
+        "test2.cu",
+        "test.ispc",
+        "test.hip",
+        "test.h",
+        "test.rc", // Windows resource file
+        "main.cpp"
+    ]
+    force_static_crt = true
+
+    deps = ["swarm-rs"]
+}

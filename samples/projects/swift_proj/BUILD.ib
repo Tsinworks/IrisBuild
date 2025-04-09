@@ -1,0 +1,12 @@
+source_set("swiftUI_pri") {
+    sources = [
+        "TsinSwiftUI/ContentView.swift",
+        "TsinSwiftUI/TsinSwiftUIApp.swift"
+    ]
+    visibility = [ ":*" ]
+}
+
+executable("TsinSwiftUIApp") {
+    deps = [ ":swiftUI_pri" ]
+    include_dirs = [ "TsinSwiftUI" ]
+}
